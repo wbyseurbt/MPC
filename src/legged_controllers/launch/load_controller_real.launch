@@ -29,12 +29,12 @@
           controllers/legged_controller
           controllers/legged_cheater_controller"/>
 
+    <!-- joint_state_controller 与 legged_controller 争用 HybridJointInterface，实机改由 LeggedController 发布 /joint_states -->
     <node unless="$(arg cheater)" name="controller_loader" pkg="controller_manager" type="spawner"
           respawn="true" respawn_delay="3"
           output="screen" args="
           --namespace /
           --no-timeout
-          controllers/joint_state_controller
           controllers/legged_controller"/>
 
     <node pkg="legged_controllers" type="legged_target_trajectories_publisher" name="legged_robot_target"

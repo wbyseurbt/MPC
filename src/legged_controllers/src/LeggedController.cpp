@@ -53,6 +53,9 @@ bool LeggedController::init(hardware_interface::RobotHW* robot_hw, ros::NodeHand
   dynamic_reconfigure::Server<legged_controllers::TutorialsConfig>::CallbackType f;
   f = boost::bind(&LeggedController::dynamicParamCallback, this, _1, _2);
   serverPtr_->setCallback(f);
+  legged_controllers::TutorialsConfig defaultConfig;
+  serverPtr_->getConfigDefault(defaultConfig);
+  dynamicParamCallback(defaultConfig, 0);
 
   // Initialize OCS2
   std::string urdfFile;
@@ -314,11 +317,7 @@ void LeggedController::update(const ros::Time& time, const ros::Duration& period
     }
 
     if (!loadControllerFlag_) {  //还没有使能控制器
-      if (j == 4 || j == 9) {
-        hybridJointHandles_[j].setCommand(mpc_planned_joint_pos[j], mpc_planned_joint_vel[j], kp_position, kd_position, 0);
-      } else {
-        hybridJointHandles_[j].setCommand(mpc_planned_joint_pos[j], mpc_planned_joint_vel[j], kp_position, kd_position, 0);
-      }
+      hybridJointHandles_[j].setCommand(mpc_planned_joint_pos[j], mpc_planned_joint_vel[j], kp_position.load(), kd_position.load(), 0);
     } else {
       contact_flag_t cmdContactFlag =
           modeNumber2StanceLeg(mpcMrtInterface_->getReferenceManager().getModeSchedule().modeAtTime(currentObservation_.time));
@@ -566,8 +565,6 @@ void LeggedController::updateStateEstimation(const ros::Time& time, const ros::D
     vel_pub_.publish(vel_msg);
     torque_pub_.publish(torque_msg);
     body_pose_pub_.publish(pose_stamped);
-
-    // ROS_INFO_STREAM("current Height: " << currentObservation_.state(8));
 
     last_publish_time = current_time;
   }

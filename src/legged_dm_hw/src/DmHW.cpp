@@ -26,6 +26,9 @@ bool DmHW::init(ros::NodeHandle& root_nh, ros::NodeHandle& robot_hw_nh)
   if (!setupImu())
     return false;
 
+  jointStatePub_ = root_nh.advertise<sensor_msgs::JointState>("joint_states", 1);
+  ROS_INFO("legged_dm_hw: publishing /joint_states for RViz");
+
   return true;
 }
 
@@ -65,6 +68,21 @@ void DmHW::read(const ros::Time& time, const ros::Duration& period)
   imuData_.linear_acc[0] = latestImu_.linear_acceleration.x;
   imuData_.linear_acc[1] = latestImu_.linear_acceleration.y;
   imuData_.linear_acc[2] = latestImu_.linear_acceleration.z;
+
+  if ((time - lastJointStatePubTime_).toSec() >= 0.05) {
+    sensor_msgs::JointState msg;
+    msg.header.stamp = time;
+    for (const auto& [port, port_data] : port_id2dm_data_) {
+      for (const auto& [can_id, data] : port_data) {
+        msg.name.push_back(data.name);
+        msg.position.push_back(data.pos);
+        msg.velocity.push_back(data.vel);
+        msg.effort.push_back(data.effort);
+      }
+    }
+    jointStatePub_.publish(msg);
+    lastJointStatePubTime_ = time;
+  }
 }
 
 }  // namespace legged

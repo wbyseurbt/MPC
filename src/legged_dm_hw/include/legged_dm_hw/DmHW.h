@@ -12,6 +12,7 @@ Modified Copyright (c) 2023-2024, BridgeDP Robotics.Co.Ltd. All rights reserved.
 #include <dm_hw/DmHW.h>
 
 #include <sensor_msgs/Imu.h>
+#include <sensor_msgs/JointState.h>
 #include <ros/ros.h>
 
 namespace legged
@@ -42,6 +43,8 @@ private:
   DmImuData imuData_{};
   ros::Subscriber odom_sub_;
   sensor_msgs::Imu latestImu_;
+  ros::Publisher jointStatePub_;
+  ros::Time lastJointStatePubTime_;
 
   void imuCallback(const sensor_msgs::Imu::ConstPtr& msg) { latestImu_ = *msg; }
 };
