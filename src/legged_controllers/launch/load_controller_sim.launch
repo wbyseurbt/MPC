@@ -22,6 +22,8 @@
     <node if="$(arg cheater)" name="controller_loader" pkg="controller_manager" type="spawner"
           respawn="true" respawn_delay="2"
           output="screen" args="
+          --namespace /
+          --no-timeout
           controllers/joint_state_controller
           controllers/legged_controller
           controllers/legged_cheater_controller"/>
@@ -29,6 +31,8 @@
     <node unless="$(arg cheater)" name="controller_loader" pkg="controller_manager" type="spawner"
           respawn="true" respawn_delay="2"
           output="screen" args="
+          --namespace /
+          --no-timeout
           controllers/joint_state_controller
           controllers/legged_controller"/>
 

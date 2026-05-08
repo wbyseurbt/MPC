@@ -19,11 +19,15 @@
 
     <node if="$(arg cheater)" name="controller_loader" pkg="controller_manager" type="spawner"
           output="screen" args="
+          --namespace /
+          --no-timeout
           controllers/legged_controller
           controllers/legged_cheater_controller"/>
 
     <node unless="$(arg cheater)" name="controller_loader" pkg="controller_manager" type="spawner"
           output="screen" args="
+          --namespace /
+          --no-timeout
           controllers/legged_controller"/>
 
     <node pkg="legged_controllers" type="legged_target_trajectories_publisher" name="legged_robot_target"

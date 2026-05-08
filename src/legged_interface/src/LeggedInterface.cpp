@@ -113,10 +113,13 @@ void LeggedInterface::setupOptimalControlProblem(const std::string& taskFile, co
   RelaxedBarrierPenalty::Config barrierPenaltyConfig;
   std::tie(frictionCoefficient, barrierPenaltyConfig) = loadFrictionConeSettings(taskFile, verbose);
 
+  // CppAD-based end-effector constraints can be very slow on some machines/architectures.
+  // Keep controller loading robust by making them opt-in.
+  bool enableAdvancedConstraints = false;
+  loadData::loadCppDataType(taskFile, "legged_robot_interface.enableAdvancedConstraints", enableAdvancedConstraints);
+
   for (size_t i = 0; i < centroidalModelInfo_.numThreeDofContacts; i++) {
     const std::string& footName = modelSettings_.contactNames3DoF[i];
-
-    std::unique_ptr<EndEffectorKinematics<scalar_t>> eeKinematicsPtr = getEeKinematicsPtr({footName}, footName);
 
     if (useHardFrictionConeConstraint_) {
       problemPtr_->inequalityConstraintPtr->add(footName + "_frictionCone", getFrictionConeConstraint(i, frictionCoefficient));
@@ -126,16 +129,22 @@ void LeggedInterface::setupOptimalControlProblem(const std::string& taskFile, co
     }
     problemPtr_->equalityConstraintPtr->add(footName + "_zeroForce", std::unique_ptr<StateInputConstraint>(new ZeroForceConstraint(
                                                                          *referenceManagerPtr_, i, centroidalModelInfo_)));
-    problemPtr_->equalityConstraintPtr->add(footName + "_zeroVelocity", getZeroVelocityConstraint(*eeKinematicsPtr, i));
-    problemPtr_->equalityConstraintPtr->add(
-        footName + "_normalVelocity",
-        std::unique_ptr<StateInputConstraint>(new NormalVelocityConstraintCppAd(*referenceManagerPtr_, *eeKinematicsPtr, i)));
-    problemPtr_->softConstraintPtr->add(footName + "_xySwingSoft", getSoftSwingTrajConstraint(*eeKinematicsPtr, i, taskFile, verbose));
+
+    if (enableAdvancedConstraints) {
+      std::unique_ptr<EndEffectorKinematics<scalar_t>> eeKinematicsPtr = getEeKinematicsPtr({footName}, footName);
+      problemPtr_->equalityConstraintPtr->add(footName + "_zeroVelocity", getZeroVelocityConstraint(*eeKinematicsPtr, i));
+      problemPtr_->equalityConstraintPtr->add(
+          footName + "_normalVelocity",
+          std::unique_ptr<StateInputConstraint>(new NormalVelocityConstraintCppAd(*referenceManagerPtr_, *eeKinematicsPtr, i)));
+      problemPtr_->softConstraintPtr->add(footName + "_xySwingSoft", getSoftSwingTrajConstraint(*eeKinematicsPtr, i, taskFile, verbose));
+    }
   }
 
   problemPtr_->softConstraintPtr->add("StateInputLimitSoft", getLimitConstraints(centroidalModelInfo_));
-  problemPtr_->stateSoftConstraintPtr->add("selfCollision",
-                                           getSelfCollisionConstraint(*pinocchioInterfacePtr_, taskFile, "selfCollision", verbose));
+  if (enableAdvancedConstraints) {
+    problemPtr_->stateSoftConstraintPtr->add("selfCollision",
+                                             getSelfCollisionConstraint(*pinocchioInterfacePtr_, taskFile, "selfCollision", verbose));
+  }
   setupPreComputation(taskFile, urdfFile, referenceFile, verbose);
   rolloutPtr_ = std::make_unique<TimeTriggeredRollout>(*problemPtr_->dynamicsPtr, rolloutSettings_);
 

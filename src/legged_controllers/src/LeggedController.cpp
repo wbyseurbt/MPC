@@ -42,6 +42,14 @@ at www.bridgedp.com.
 
 namespace legged {
 bool LeggedController::init(hardware_interface::RobotHW* robot_hw, ros::NodeHandle& controller_nh) {
+  ROS_INFO("[LeggedController] init() start");
+  // Expose dynamic reconfigure as early as possible so tuning UI is available
+  // even when heavy model initialization takes longer on some machines.
+  serverPtr_ = std::make_unique<dynamic_reconfigure::Server<legged_controllers::TutorialsConfig>>(ros::NodeHandle("controller"));
+  dynamic_reconfigure::Server<legged_controllers::TutorialsConfig>::CallbackType f;
+  f = boost::bind(&LeggedController::dynamicParamCallback, this, _1, _2);
+  serverPtr_->setCallback(f);
+
   // Initialize OCS2
   std::string urdfFile;
   std::string taskFile;
@@ -52,9 +60,15 @@ bool LeggedController::init(hardware_interface::RobotHW* robot_hw, ros::NodeHand
   bool verbose = false;
   loadData::loadCppDataType(taskFile, "legged_robot_interface.verbose", verbose);
 
+  ROS_INFO("[LeggedController] setupLeggedInterface() begin");
   setupLeggedInterface(taskFile, urdfFile, referenceFile, verbose);
+  ROS_INFO("[LeggedController] setupLeggedInterface() done");
+  ROS_INFO("[LeggedController] setupMpc() begin");
   setupMpc();
+  ROS_INFO("[LeggedController] setupMpc() done");
+  ROS_INFO("[LeggedController] setupMrt() begin");
   setupMrt();
+  ROS_INFO("[LeggedController] setupMrt() done");
   // Visualization
   ros::NodeHandle nh;
   CentroidalModelPinocchioMapping pinocchioMapping(leggedInterface_->getCentroidalModelInfo());
@@ -97,7 +111,9 @@ bool LeggedController::init(hardware_interface::RobotHW* robot_hw, ros::NodeHand
   imuSensorHandle_ = robot_hw->get<hardware_interface::ImuSensorInterface>()->getHandle("imu_link");
 
   // State estimation
+  ROS_INFO("[LeggedController] setupStateEstimate() begin");
   setupStateEstimate(taskFile, verbose);
+  ROS_INFO("[LeggedController] setupStateEstimate() done");
 
   // Whole body control
   wbc_ = std::make_shared<WeightedWbc>(leggedInterface_->getPinocchioInterface(), leggedInterface_->getCentroidalModelInfo(),
@@ -113,6 +129,7 @@ bool LeggedController::init(hardware_interface::RobotHW* robot_hw, ros::NodeHand
 
   // Reading relevant parameters
   RetrievingParameters();
+  ROS_INFO("[LeggedController] RetrievingParameters() done");
 
   // loadEigenMatrix
   loadData::loadEigenMatrix(referenceFile, "defaultJointState", defalutJointPos_);
@@ -123,6 +140,7 @@ bool LeggedController::init(hardware_interface::RobotHW* robot_hw, ros::NodeHand
 
   info_ = leggedInterface_->getCentroidalModelInfo();
 
+  ROS_INFO("[LeggedController] init() complete");
   return true;
 }
 
@@ -144,11 +162,6 @@ void LeggedController::starting(const ros::Time& time) {
   // Mode Subscribe
   ModeSubscribe();
 
-  // Dynamic server
-  serverPtr_ = std::make_unique<dynamic_reconfigure::Server<legged_controllers::TutorialsConfig>>(ros::NodeHandle("controller"));
-  dynamic_reconfigure::Server<legged_controllers::TutorialsConfig>::CallbackType f;
-  f = boost::bind(&LeggedController::dynamicParamCallback, this, _1, _2);
-  serverPtr_->setCallback(f);
 }
 
 int number = 20;
