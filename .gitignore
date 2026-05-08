@@ -1,1 +1,4 @@
-devel
+*
+!src/
+!src/**
+!README.md
