@@ -1,9 +1,11 @@
 <launch>
+    <arg name="software_rendering" default="false"/>
     <param name="legged_robot_description" textfile="$(find legged_dm_description)/urdf/dm.urdf"/>
 
     <rosparam file="$(find legged_gazebo)/config/default.yaml" command="load"/>
     <include file="$(find legged_gazebo)/launch/empty_world.launch">
         <arg name="world_name" value="$(find legged_gazebo)/worlds/empty_world.world"/>
+        <arg name="software_rendering" value="$(arg software_rendering)"/>
     </include>
 
     <!-- push robot_description to factory and spawn robot in gazebo -->

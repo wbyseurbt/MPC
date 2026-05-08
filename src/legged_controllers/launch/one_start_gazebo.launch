@@ -5,17 +5,36 @@
     <arg name="robot_type" default="dm" doc="Robot type: [dm]"/>
     <arg name="rviz" default="true"/>
     <arg name="record_data" default="false"/>
+    <!-- Cross-platform safe default: software rendering works on x86/arm and containers -->
+    <arg name="software_rendering" default="$(optenv MPC_SOFTWARE_RENDERING true)"/>
+    <!-- ARM/VNC may need more time before controller_manager is ready -->
+    <arg name="controller_start_delay" default="$(optenv MPC_CONTROLLER_START_DELAY 8)"/>
+    <!-- Start rqt_reconfigure later so /controller dynamic params are visible -->
+    <arg name="rqt_start_delay" default="$(optenv MPC_RQT_START_DELAY 12)"/>
 
-    <include file="$(find legged_dm_description)/launch/empty_world.launch"/>
+    <include file="$(find legged_dm_description)/launch/empty_world.launch">
+        <arg name="software_rendering" value="$(arg software_rendering)"/>
+    </include>
 
-    <node pkg="legged_controllers" type="timedelay_launch.sh" name="timedelay_launch" args="2 legged_controllers load_controller_sim.launch" output="screen"/>
+    <node pkg="legged_controllers" type="timedelay_launch.sh" name="timedelay_launch" args="$(arg controller_start_delay) legged_controllers load_controller_sim.launch" output="screen"/>
 
-    <node if="$(arg rviz)" name="rviz" pkg="rviz" type="rviz" args="-d $(find legged_controllers)/rviz/legged_robot.rviz" required="true" />
+    <node if="$(eval arg('rviz') and not arg('software_rendering'))" name="rviz" pkg="rviz" type="rviz" args="--opengl 210 -d $(find legged_controllers)/rviz/legged_robot.rviz" required="false" />
+
+    <node if="$(eval arg('rviz') and arg('software_rendering'))" name="rviz" pkg="rviz" type="rviz" args="--opengl 210 -d $(find legged_controllers)/rviz/legged_robot.rviz" required="false">
+        <!-- Software rendering fallback for environments without working GL pass-through -->
+        <env name="LIBGL_ALWAYS_SOFTWARE" value="1"/>
+        <env name="MESA_LOADER_DRIVER_OVERRIDE" value="llvmpipe"/>
+        <env name="MESA_GL_VERSION_OVERRIDE" value="3.3"/>
+        <env name="LIBGL_DRI3_DISABLE" value="1"/>
+        <env name="QT_OPENGL" value="software"/>
+        <env name="QT_X11_NO_MITSHM" value="1"/>
+    </node>
 
     <group if="$(arg record_data)">
         <include file="$(find legged_controllers)/launch/record_data.launch"/>
     </group>
 
-    <node name="rqt_reconfigure" pkg="rqt_reconfigure" type="rqt_reconfigure" output="screen"></node>
+    <node pkg="legged_controllers" type="timedelay_launch.sh" name="timedelay_rqt"
+          args="$(arg rqt_start_delay) legged_controllers start_rqt_reconfigure.launch" output="screen"/>
 
 </launch>

@@ -4,7 +4,10 @@
     <arg name="robot_type" default="dm" doc="Robot type: [dm]"/>
     <arg name="cheater" default="false"/>
 
-    <include file="$(find legged_controllers)/launch/joy_teleop.launch"/>
+    <arg name="use_joy" default="false"/>
+    <group if="$(arg use_joy)">
+        <include file="$(find legged_controllers)/launch/joy_teleop.launch"/>
+    </group>
 
     <!-- make the files into global parameters -->
     <param name="urdfFile" value="$(find legged_dm_description)/urdf/dm.urdf"/>
@@ -17,12 +20,16 @@
     <rosparam file="$(find legged_controllers)/config/controllers.yaml" command="load"/>
 
     <node if="$(arg cheater)" name="controller_loader" pkg="controller_manager" type="spawner"
+          respawn="true" respawn_delay="2"
           output="screen" args="
+          controllers/joint_state_controller
           controllers/legged_controller
           controllers/legged_cheater_controller"/>
 
     <node unless="$(arg cheater)" name="controller_loader" pkg="controller_manager" type="spawner"
+          respawn="true" respawn_delay="2"
           output="screen" args="
+          controllers/joint_state_controller
           controllers/legged_controller"/>
 
     <node pkg="legged_controllers" type="legged_target_trajectories_publisher" name="legged_robot_target"

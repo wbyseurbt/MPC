@@ -22,6 +22,7 @@
   <arg name="enable_ros_network" default="true" />
   <arg name="server_required" default="false"/>
   <arg name="gui_required" default="false"/>
+  <arg name="software_rendering" default="false"/>
 
   <!-- set use_sim_time flag -->
   <param name="/use_sim_time" value="$(arg use_sim_time)"/>
@@ -43,14 +44,30 @@
   <group>
     <param name="gazebo/enable_ros_network" value="$(arg enable_ros_network)" />
   </group>
-  <node name="gazebo" pkg="gazebo_ros" type="$(arg script_type)" respawn="$(arg respawn_gazebo)" output="$(arg output)"
+  <node unless="$(arg software_rendering)" name="gazebo" pkg="gazebo_ros" type="$(arg script_type)" respawn="$(arg respawn_gazebo)" output="$(arg output)"
 	args="$(arg command_arg1) $(arg command_arg2) $(arg command_arg3) -e $(arg physics) $(arg extra_gazebo_args) $(arg world_name)"
   required="$(arg server_required)"/>
 
+  <node if="$(arg software_rendering)" name="gazebo" pkg="gazebo_ros" type="$(arg script_type)" respawn="$(arg respawn_gazebo)" output="$(arg output)"
+    args="$(arg command_arg1) $(arg command_arg2) $(arg command_arg3) -e $(arg physics) $(arg extra_gazebo_args) $(arg world_name)"
+    required="$(arg server_required)">
+    <env name="LIBGL_ALWAYS_SOFTWARE" value="1"/>
+    <env name="MESA_LOADER_DRIVER_OVERRIDE" value="llvmpipe"/>
+    <env name="MESA_GL_VERSION_OVERRIDE" value="3.3"/>
+  </node>
+
   <!-- start gazebo client -->
   <group if="$(arg gui)">
-    <node name="gazebo_gui" pkg="gazebo_ros" type="gzclient" respawn="false" output="$(arg output)" args="$(arg command_arg3)"
+    <node unless="$(arg software_rendering)" name="gazebo_gui" pkg="gazebo_ros" type="gzclient" respawn="false" output="$(arg output)" args="$(arg command_arg3)"
     required="$(arg gui_required)"/>
+
+    <node if="$(arg software_rendering)" name="gazebo_gui" pkg="gazebo_ros" type="gzclient" respawn="false" output="$(arg output)" args="$(arg command_arg3)"
+    required="$(arg gui_required)">
+      <env name="LIBGL_ALWAYS_SOFTWARE" value="1"/>
+      <env name="MESA_LOADER_DRIVER_OVERRIDE" value="llvmpipe"/>
+      <env name="MESA_GL_VERSION_OVERRIDE" value="3.3"/>
+      <env name="QT_X11_NO_MITSHM" value="1"/>
+    </node>
   </group>
 
 </launch>
