@@ -127,3 +127,8 @@ install(DIRECTORY include/${PROJECT_NAME}/
 install(FILES legged_controllers_plugins.xml
         DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
         )
+
+# Install helper launch script as executable ROS node
+install(PROGRAMS scripts/timedelay_launch.sh
+        DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+        )
