@@ -23,14 +23,12 @@ set(BUILD_SHARED_LIBS ON CACHE STRING "Build shared libraries" FORCE)
 set(QPOASES_BUILD_EXAMPLES OFF CACHE BOOL "Examples disable")
 
 # Download & build source
+#
+# Use a source archive instead of git clone to reduce transient network failures
+# during FetchContent (works the same on x86_64 and aarch64).
 FetchContent_Declare(qpoasesDownload
-        GIT_REPOSITORY https://github.com/coin-or/qpOASES
-        GIT_TAG 268b2f2659604df27c82aa6e32aeddb8c1d5cc7f
-        UPDATE_COMMAND ""
+        URL https://github.com/coin-or/qpOASES/archive/268b2f2659604df27c82aa6e32aeddb8c1d5cc7f.tar.gz
         SOURCE_DIR ${QPOASES_DOWNLOAD_DIR}
-        BINARY_DIR ${QPOASES_BUILD_DIR}
-        BUILD_COMMAND $(MAKE)
-        INSTALL_COMMAND "$(MAKE) install"
         )
 FetchContent_MakeAvailable(qpoasesDownload)
 
