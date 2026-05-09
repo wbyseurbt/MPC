@@ -1,6 +1,10 @@
 <launch>
     <!-- 独立电机测试：只需 USB-CAN + 目标电机，无需完整机器人配置 -->
 
+    <!-- 同名 libdm_hw.so 若存在于其它 workspace（如 motor_ws），LD_LIBRARY_PATH 会优先加载那份，
+         易出现 serial 符号未定义。此处把本工作空间 devel/lib 放在最前（find → …/devel/share/<pkg>）。 -->
+    <env name="LD_LIBRARY_PATH" value="$(find legged_dm_hw)/../../lib:$(optenv LD_LIBRARY_PATH)" />
+
     <!-- 硬件配置：测试电机列表（motor_test.yaml）-->
     <rosparam file="$(find legged_dm_hw)/config/motor_test.yaml" command="load"/>
 

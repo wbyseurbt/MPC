@@ -1,4 +1,6 @@
 <launch>
+    <env name="LD_LIBRARY_PATH" value="$(find legged_dm_hw)/../../lib:$(optenv LD_LIBRARY_PATH)" />
+
     <arg name="robot_type" default="dm" doc="Robot type: [dm]"/>
 
     <param name="legged_robot_description" command="$(find xacro)/xacro $(find legged_dm_description)/urdf/dm.urdf

@@ -4,6 +4,15 @@ project(legged_dm_hw)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD 17)
 
+# Outer workspaces often prepend CMAKE_PREFIX_PATH (e.g. motor_ws also ships a `dm_hw`
+# without IMU / legged_common). Catkin then picks that package first. Pin to this
+# workspace's dm_hw when it has been built here (same layout on x86_64 and arm64).
+get_filename_component(_MPC_WS_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../.." ABSOLUTE)
+set(_MPC_DM_HW_CONFIG "${_MPC_WS_ROOT}/devel/share/dm_hw/cmake/dm_hwConfig.cmake")
+if(EXISTS "${_MPC_DM_HW_CONFIG}")
+  set(dm_hw_DIR "${_MPC_WS_ROOT}/devel/share/dm_hw/cmake" CACHE PATH "" FORCE)
+endif()
+
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   dm_hw
