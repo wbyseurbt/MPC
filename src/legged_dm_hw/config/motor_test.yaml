@@ -1,0 +1,76 @@
+# 独立电机测试配置 —— 只写要测试的电机，格式与 dm.yaml 完全相同
+
+damiao:
+  loop_frequency: 500
+  cycle_time_error_threshold: 0.002
+  thread_priority: 95
+
+legged_dm_hw:
+  serials:
+    can0:
+      port: /dev/ttyACM0
+      baudrate: 921600
+
+  dm_actuators:
+    # ===== 右腿 5 个关节 =====
+    leg_l1_joint:
+      port: /dev/ttyACM0
+      type: DM4340
+      can_id: 0x01
+      mst_id: 0x11
+      direction: 1
+    leg_l2_joint:
+      port: /dev/ttyACM0
+      type: DM4340
+      can_id: 0x02
+      mst_id: 0x12
+      direction: 1
+    leg_l3_joint:
+      port: /dev/ttyACM0
+      type: DM4340
+      can_id: 0x03
+      mst_id: 0x13
+      direction: 1
+    leg_l4_joint:
+      port: /dev/ttyACM0
+      type: DM4340
+      can_id: 0x04
+      mst_id: 0x14
+      direction: 1
+    leg_l5_joint:
+      port: /dev/ttyACM0
+      type: DM4340
+      can_id: 0x05
+      mst_id: 0x15
+      direction: 1
+
+    leg_r1_joint:
+      port: /dev/ttyACM0
+      type: DM4340
+      can_id: 0x06
+      mst_id: 0x16
+      direction: 1
+    leg_r2_joint:
+      port: /dev/ttyACM0
+      type: DM4340
+      can_id: 0x07
+      mst_id: 0x17
+      direction: 1
+    leg_r3_joint:
+      port: /dev/ttyACM0
+      type: DM4340
+      can_id: 0x08
+      mst_id: 0x18
+      direction: 1
+    leg_r4_joint:
+      port: /dev/ttyACM0
+      type: DM4340
+      can_id: 0x09
+      mst_id: 0x19
+      direction: 1
+    leg_r5_joint:
+      port: /dev/ttyACM0
+      type: DM4340
+      can_id: 0x10
+      mst_id: 0x20
+      direction: 1

@@ -19,6 +19,7 @@ find_package(catkin REQUIRED
         rospy
         std_msgs
         message_generation
+        sensor_msgs
         )
 
 find_package(PkgConfig REQUIRED)
@@ -47,6 +48,7 @@ catkin_package(
         rospy
         std_msgs
         message_generation
+        sensor_msgs
 )
 
 ###########
@@ -68,6 +70,7 @@ link_directories(
 add_library(${PROJECT_NAME}
         src/LeggedController.cpp
         src/utilities.cpp
+        src/DmController.cpp
         )
         
 target_link_libraries(${PROJECT_NAME}

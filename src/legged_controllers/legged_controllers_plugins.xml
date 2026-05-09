@@ -14,4 +14,12 @@
         </description>
     </class>
 
+
+    <class name="damiao/DmController" type="damiao::DmController"
+           base_class_type="controller_interface::ControllerBase">
+        <description>
+            Simple DM motor test controller (MIT mode, sine wave velocity).
+        </description>
+    </class>
+
 </library>

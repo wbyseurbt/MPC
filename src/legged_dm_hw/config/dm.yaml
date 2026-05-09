@@ -1,0 +1,82 @@
+# Control loop parameters (read by DmHWLoop under namespace "damiao")
+damiao:
+  loop_frequency: 500
+  cycle_time_error_threshold: 0.002
+  thread_priority: 95
+
+# legged_dm_hw node private parameters
+legged_dm_hw:
+  power_limit: 6
+  contact_threshold: 200
+
+  # Serial/USB-CAN ports
+  # Adjust port and baudrate to match your hardware.
+  serials:
+    can0:
+      port: /dev/ttyACM0
+      baudrate: 921600
+
+  # DM motor mapping: joint name -> CAN configuration
+  # direction: +1 or -1 (motor-to-joint sign convention)
+  # Adjust can_id values to match your motor CAN IDs.
+  dm_actuators:
+    leg_l1_joint:
+      port: /dev/ttyACM0
+      type: DM4340
+      can_id: 1
+      mst_id: 0
+      direction: 1
+    leg_l2_joint:
+      port: /dev/ttyACM0
+      type: DM4340
+      can_id: 2
+      mst_id: 0
+      direction: 1
+    leg_l3_joint:
+      port: /dev/ttyACM0
+      type: DM4340
+      can_id: 3
+      mst_id: 0
+      direction: -1
+    leg_l4_joint:
+      port: /dev/ttyACM0
+      type: DM4340
+      can_id: 4
+      mst_id: 0
+      direction: 1
+    leg_l5_joint:
+      port: /dev/ttyACM0
+      type: DM4340
+      can_id: 5
+      mst_id: 0
+      direction: 1
+    leg_r1_joint:
+      port: /dev/ttyACM0
+      type: DM4340
+      can_id: 6
+      mst_id: 0
+      direction: -1
+    leg_r2_joint:
+      port: /dev/ttyACM0
+      type: DM4340
+      can_id: 7
+      mst_id: 0
+      direction: 1
+    leg_r3_joint:
+      port: /dev/ttyACM0
+      type: DM4340
+      can_id: 8
+      mst_id: 0
+      direction: -1
+    leg_r4_joint:
+      port: /dev/ttyACM0
+      type: DM4340
+      can_id: 9
+      mst_id: 0
+      direction: -1
+    leg_r5_joint:
+      port: /dev/ttyACM0
+      type: DM4340
+      can_id: 10
+      mst_id: 0
+      direction: -1
