@@ -3,6 +3,28 @@
 namespace damiao
 {
 
+void DmController::dynamicParamCallback(legged_controllers::DmMotorTestConfig& config, uint32_t /*level*/)
+{
+  constexpr double kDegToRad = 0.017453292519943295;
+  std::lock_guard<std::mutex> lock(command_mutex_);
+  enable_output_ = config.enable_output;
+  command_velocity_ = config.command_velocity;
+  command_kp_ = config.command_kp;
+  command_kd_ = config.command_kd;
+  command_ff_ = config.command_ff;
+
+  if (target_positions_.size() > 0) target_positions_[0] = config.joint_1_deg * kDegToRad;
+  if (target_positions_.size() > 1) target_positions_[1] = config.joint_2_deg * kDegToRad;
+  if (target_positions_.size() > 2) target_positions_[2] = config.joint_3_deg * kDegToRad;
+  if (target_positions_.size() > 3) target_positions_[3] = config.joint_4_deg * kDegToRad;
+  if (target_positions_.size() > 4) target_positions_[4] = config.joint_5_deg * kDegToRad;
+  if (target_positions_.size() > 5) target_positions_[5] = config.joint_6_deg * kDegToRad;
+  if (target_positions_.size() > 6) target_positions_[6] = config.joint_7_deg * kDegToRad;
+  if (target_positions_.size() > 7) target_positions_[7] = config.joint_8_deg * kDegToRad;
+  if (target_positions_.size() > 8) target_positions_[8] = config.joint_9_deg * kDegToRad;
+  if (target_positions_.size() > 9) target_positions_[9] = config.joint_10_deg * kDegToRad;
+}
+
 bool DmController::init(legged::HybridJointInterface* robot_hw, ros::NodeHandle& nh)
 {
   std::vector<std::string> joint_names;
@@ -25,6 +47,12 @@ bool DmController::init(legged::HybridJointInterface* robot_hw, ros::NodeHandle&
       return false;
     }
   }
+  target_positions_.assign(joints_.size(), 0.0);
+
+  serverPtr_ = std::make_unique<dynamic_reconfigure::Server<legged_controllers::DmMotorTestConfig>>(nh);
+  dynamic_reconfigure::Server<legged_controllers::DmMotorTestConfig>::CallbackType cb;
+  cb = boost::bind(&DmController::dynamicParamCallback, this, _1, _2);
+  serverPtr_->setCallback(cb);
 
   state_pub_ = nh.advertise<sensor_msgs::JointState>("joint_states", 1);
   return true;
@@ -49,35 +77,33 @@ void DmController::starting(const ros::Time& time)
 // ======================================================================
 void DmController::update(const ros::Time& time, const ros::Duration& period)
 {
-  if (joints_.size() > 0)
-    joints_[0].setCommand(0.0, 0.0, 30.0, 1.0, 0.0);  // leg_r1_joint: kp=0 kd=1.0
+  std::vector<double> target_positions;
+  double command_velocity;
+  double command_kp;
+  double command_kd;
+  double command_ff;
+  bool enable_output;
+  {
+    std::lock_guard<std::mutex> lock(command_mutex_);
+    target_positions = target_positions_;
+    command_velocity = command_velocity_;
+    command_kp = command_kp_;
+    command_kd = command_kd_;
+    command_ff = command_ff_;
+    enable_output = enable_output_;
+  }
 
-  if (joints_.size() > 1)
-    joints_[1].setCommand(0.0, 0.0, 30.0, 1.0, 0.0);  // leg_r2_joint
-
-  if (joints_.size() > 2)
-    joints_[2].setCommand(0.0, 0.0, 30.0, 1.0, 0.0);  // leg_r3_joint
-
-  if (joints_.size() > 3)
-    joints_[3].setCommand(0.0, 0.0, 30.0, 1.0, 0.0);  // leg_r4_joint
-
-  if (joints_.size() > 4)
-    joints_[4].setCommand(0.0, 0.0, 30.0, 1.0, 0.0);  // leg_r5_joint
-
-  if (joints_.size() > 5)
-    joints_[5].setCommand(0.0, 0.0, 30.0, 1.0, 0.0);
-
-  if (joints_.size() > 6)
-    joints_[6].setCommand(0.0, 0.0, 30.0, 1.0, 0.0);
-
-  if (joints_.size() > 7)
-    joints_[7].setCommand(0.0, 0.0, 30.0, 1.0, 0.0);
-
-  if (joints_.size() > 8)
-    joints_[8].setCommand(0.0, 0.0, 30.0, 1.0, 0.0);
-
-  if (joints_.size() > 9)
-    joints_[9].setCommand(0.0, 0.0, 30.0, 1.0, 0.0);
+  for (size_t i = 0; i < joints_.size() && i < target_positions.size(); ++i)
+  {
+    if (enable_output)
+    {
+      joints_[i].setCommand(target_positions[i], command_velocity, command_kp, command_kd, command_ff);
+    }
+    else
+    {
+      joints_[i].setCommand(0.0, 0.0, 0.0, 0.0, 0.0);
+    }
+  }
 
   // Publish feedback at 20 Hz
   if ((time - last_pub_time_).toSec() >= 0.05)

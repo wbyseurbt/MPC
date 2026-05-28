@@ -11,8 +11,8 @@ dm_test_controller:
     - leg_r3_joint
     - leg_r4_joint
     - leg_r5_joint
-    # - leg_l1_joint
-    # - leg_l2_joint
-    # - leg_l3_joint
-    # - leg_l4_joint
-    # - leg_l5_joint
+    - leg_l1_joint
+    - leg_l2_joint
+    - leg_l3_joint
+    - leg_l4_joint
+    - leg_l5_joint

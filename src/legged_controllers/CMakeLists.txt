@@ -27,6 +27,7 @@ pkg_check_modules(pinocchio REQUIRED pinocchio)
 
 generate_dynamic_reconfigure_options(  
         cfg/Tutorials.cfg
+        cfg/DmMotorTest.cfg
         )
 
 catkin_package(

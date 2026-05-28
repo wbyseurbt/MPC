@@ -19,4 +19,7 @@
     <node name="controller_spawner" pkg="controller_manager" type="spawner"
           output="screen" respawn="false"
           args="joint_state_controller dm_test_controller"/>
+
+    <!-- 角度拖动面板：打开后在 /dm_test_controller 下拖动 joint_*_pos -->
+    <node name="motor_test_tuner" pkg="rqt_reconfigure" type="rqt_reconfigure" output="screen"/>
 </launch>
