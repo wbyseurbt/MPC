@@ -243,7 +243,7 @@ void DmImu::get_imu_data_thread()
         imu_pub_.publish(imu_msgs);
 
         geometry_msgs::PoseStamped pose;
-        pose.header.frame_id = "imu_link";
+        pose.header.frame_id = "world";
         pose.header.stamp = imu_msgs.header.stamp;
         pose.pose.position.x = 0.0;
         pose.pose.position.y = 0.0;

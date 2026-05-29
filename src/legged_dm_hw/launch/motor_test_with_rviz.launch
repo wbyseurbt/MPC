@@ -1,0 +1,21 @@
+<launch>
+    <arg name="robot_type" default="dm" doc="Robot type: [dm]"/>
+    <arg name="rviz" default="true"/>
+
+    <!-- 复用原有电机测试链路（硬件 + 控制器 + rqt_reconfigure） -->
+    <include file="$(find legged_dm_hw)/launch/motor_test.launch"/>
+
+    <!-- RViz 的 RobotModel 使用 legged_robot_description -->
+    <param name="legged_robot_description" command="$(find xacro)/xacro $(find legged_dm_description)/urdf/dm.urdf robot_type:=$(arg robot_type)"/>
+    <!-- robot_state_publisher 默认读取 robot_description -->
+    <param name="robot_description" command="$(find xacro)/xacro $(find legged_dm_description)/urdf/dm.urdf robot_type:=$(arg robot_type)"/>
+
+    <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" output="screen"/>
+
+    <!-- legged_robot.rviz 的 Fixed Frame 为 odom，提供一个静态 odom->base_link -->
+    <node name="static_odom_to_base" pkg="tf2_ros" type="static_transform_publisher"
+          args="0 0 0 0 0 0 odom base_link" output="screen"/>
+
+    <node if="$(arg rviz)" name="rviz" pkg="rviz" type="rviz"
+          args="-d $(find legged_controllers)/rviz/legged_robot.rviz" required="false"/>
+</launch>

@@ -62,6 +62,18 @@ Visualization Manager:
       Show Trail: false
       Value: true
     - Alpha: 1
+      Class: rviz/Imu
+      Enabled: true
+      Name: Imu
+      Topic: /imu/data
+      Acceleration: true
+      Axes: true
+      Axes Length: 0.6000000238418579
+      Axes Radius: 0.05000000074505806
+      Orientation: true
+      Queue Size: 10
+      Value: true
+    - Alpha: 1
       Axes Length: 1
       Axes Radius: 0.10000000149011612
       Class: rviz/Pose
@@ -81,7 +93,7 @@ Visualization Manager:
   Global Options:
     Background Color: 48; 48; 48
     Default Light: true
-    Fixed Frame: imu_link
+    Fixed Frame: world
     Frame Rate: 30
   Name: root
   Tools:

@@ -23,13 +23,13 @@ legged_dm_hw:
       type: DM4340
       can_id: 0x07
       mst_id: 0x17
-      direction: 1
+      direction: -1
     leg_l3_joint:
       port: /dev/ttyACM0
       type: DM4340
       can_id: 0x08
       mst_id: 0x18
-      direction: 1
+      direction: -1
     leg_l4_joint:
       port: /dev/ttyACM0
       type: DM4340
@@ -47,7 +47,7 @@ legged_dm_hw:
       type: DM4340
       can_id: 0x05
       mst_id: 0x15
-      direction: 1
+      direction: -1
     leg_r2_joint:
       port: /dev/ttyACM0
       type: DM4340
@@ -59,16 +59,16 @@ legged_dm_hw:
       type: DM4340
       can_id: 0x03
       mst_id: 0x13
-      direction: 1
+      direction: -1
     leg_r4_joint:
       port: /dev/ttyACM0
       type: DM4340
       can_id: 0x02
       mst_id: 0x12
-      direction: 1
+      direction: -1
     leg_r5_joint:
       port: /dev/ttyACM0
       type: DM4340
       can_id: 0x01
       mst_id: 0x11
-      direction: 1
+      direction: -1
