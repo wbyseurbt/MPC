@@ -107,6 +107,8 @@ class LeggedController : public controller_interface::MultiInterfaceController<H
   std::unique_ptr<dynamic_reconfigure::Server<legged_controllers::TutorialsConfig>> serverPtr_;
 
  private:
+  void startMpcThread();
+
   ros::Publisher ctrl_pos_pub_, ctrl_vel_pub_, ctrl_ff_pub_;
   std::thread mpcThread_;
   std::atomic_bool controllerRunning_{}, mpcRunning_{};
@@ -166,6 +168,9 @@ class LeggedController : public controller_interface::MultiInterfaceController<H
 
   ros::Publisher mpc_force_pub_;
   ros::Publisher wbc_force_pub_;
+
+  bool publishBaseTf_{false};
+  std::unique_ptr<tf2_ros::TransformBroadcaster> tfBroadcaster_;
 };
 
 }  // namespace legged

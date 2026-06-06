@@ -38,6 +38,10 @@ at www.bridgedp.com.
 
 #include <geometry_msgs/PoseStamped.h>
 #include <std_msgs/Float64MultiArray.h>
+#include <tf2_ros/transform_broadcaster.h>
+
+#include <ocs2_centroidal_model/AccessHelperFunctions.h>
+#include <ocs2_robotic_tools/common/RotationTransforms.h>
 #include <chrono>
 
 namespace legged {
@@ -69,15 +73,10 @@ bool LeggedController::init(hardware_interface::RobotHW* robot_hw, ros::NodeHand
   ROS_INFO("[LeggedController] setupMrt() begin");
   setupMrt();
   ROS_INFO("[LeggedController] setupMrt() done");
-  // Visualization
-  ros::NodeHandle nh;
+
   CentroidalModelPinocchioMapping pinocchioMapping(leggedInterface_->getCentroidalModelInfo());
   eeKinematicsPtr_ = std::make_shared<PinocchioEndEffectorKinematics>(leggedInterface_->getPinocchioInterface(), pinocchioMapping,
                                                                       leggedInterface_->modelSettings().contactNames3DoF);
-  robotVisualizer_ = std::make_shared<LeggedRobotVisualizer>(leggedInterface_->getPinocchioInterface(),
-                                                             leggedInterface_->getCentroidalModelInfo(), *eeKinematicsPtr_, nh);
-  selfCollisionVisualization_.reset(new LeggedSelfCollisionVisualization(leggedInterface_->getPinocchioInterface(),
-                                                                         leggedInterface_->getGeometryInterface(), pinocchioMapping, nh));
 
   //////////////////////////////////////////////////////////////////////////////////
 
@@ -140,6 +139,22 @@ bool LeggedController::init(hardware_interface::RobotHW* robot_hw, ros::NodeHand
 
   info_ = leggedInterface_->getCentroidalModelInfo();
 
+  bool enableVisualization = true;
+  controller_nh.param("enable_visualization", enableVisualization, true);
+  if (enableVisualization) {
+    ros::NodeHandle nh;
+    ROS_INFO("[LeggedController] creating visualizers...");
+    robotVisualizer_ = std::make_shared<LeggedRobotVisualizer>(leggedInterface_->getPinocchioInterface(),
+                                                               leggedInterface_->getCentroidalModelInfo(), *eeKinematicsPtr_, nh);
+    selfCollisionVisualization_.reset(new LeggedSelfCollisionVisualization(leggedInterface_->getPinocchioInterface(),
+                                                                           leggedInterface_->getGeometryInterface(), pinocchioMapping, nh));
+    ROS_INFO("[LeggedController] visualizers ready");
+  } else {
+    publishBaseTf_ = true;
+    tfBroadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>();
+    ROS_INFO("[LeggedController] base TF will be published from state estimate (real robot mode)");
+  }
+
   ROS_INFO("[LeggedController] init() complete");
   return true;
 }
@@ -162,6 +177,7 @@ void LeggedController::starting(const ros::Time& time) {
   // Mode Subscribe
   ModeSubscribe();
 
+  startMpcThread();
 }
 
 int number = 20;
@@ -413,9 +429,30 @@ void LeggedController::update(const ros::Time& time, const ros::Duration& period
   PrimalSolution primal_solution = mpc_updated_ ? mpcMrtInterface_->getPolicy() : PrimalSolution();
 
   // Visualization
-  robotVisualizer_->update(currentObservation_, primal_solution, command_data,
-                           leggedInterface_->getSwitchedModelReferenceManagerPtr()->getSwingTrajectoryPlanner());
-  selfCollisionVisualization_->update(currentObservation_);
+  if (robotVisualizer_) {
+    robotVisualizer_->update(currentObservation_, primal_solution, command_data,
+                             leggedInterface_->getSwitchedModelReferenceManagerPtr()->getSwingTrajectoryPlanner());
+  }
+  if (selfCollisionVisualization_) {
+    selfCollisionVisualization_->update(currentObservation_);
+  }
+
+  if (publishBaseTf_ && tfBroadcaster_) {
+    const auto basePose = centroidal_model::getBasePose(currentObservation_.state, leggedInterface_->getCentroidalModelInfo());
+    geometry_msgs::TransformStamped baseToOdom;
+    baseToOdom.header.stamp = time;
+    baseToOdom.header.frame_id = "odom";
+    baseToOdom.child_frame_id = "base_link";
+    baseToOdom.transform.translation.x = basePose(0);
+    baseToOdom.transform.translation.y = basePose(1);
+    baseToOdom.transform.translation.z = basePose(2);
+    const Eigen::Quaternion<scalar_t> q = getQuaternionFromEulerAnglesZyx(vector3_t(basePose.tail<3>()));
+    baseToOdom.transform.rotation.x = q.x();
+    baseToOdom.transform.rotation.y = q.y();
+    baseToOdom.transform.rotation.z = q.z();
+    baseToOdom.transform.rotation.w = q.w();
+    tfBroadcaster_->sendTransform(baseToOdom);
+  }
 
   // Publish the observation. Only needed for the command interface
   //在setupMPC里创建了这个topic，observationPublisher_ = nh.advertise<ocs2_msgs::mpc_observation>(robotName + "_mpc_observation", 1);
@@ -597,6 +634,12 @@ void LeggedController::setupMrt() {
   mpcMrtInterface_ = std::make_shared<MPC_MRT_Interface>(*mpc_);
   mpcMrtInterface_->initRollout(&leggedInterface_->getRollout());
   mpcTimer_.reset();
+}
+
+void LeggedController::startMpcThread() {
+  if (mpcThread_.joinable()) {
+    return;
+  }
   controllerRunning_ = true;
   mpcThread_ = std::thread([&]() {
     while (controllerRunning_) {

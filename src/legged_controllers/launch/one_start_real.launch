@@ -6,10 +6,19 @@
     <arg name="robot_type" default="dm" doc="Robot type: [dm]"/>
     <arg name="rviz" default="true"/>
     <arg name="record_data" default="false"/>
+    <!-- ARM/Jetson: wait longer before loading OCS2 controller -->
+    <arg name="controller_start_delay" default="$(optenv MPC_CONTROLLER_START_DELAY 8)"/>
+    <!-- Start rqt after controller dynamic_reconfigure is ready -->
+    <arg name="rqt_start_delay" default="$(optenv MPC_RQT_START_DELAY 12)"/>
 
     <include file="$(find legged_dm_hw)/launch/legged_dm_hw.launch"/>
 
-    <node pkg="legged_controllers" type="timedelay_launch.sh" name="timedelay_launch" args="2 legged_controllers load_controller_real.launch" output="screen"/>
+    <!-- RViz：joint_states -> 关节 TF；机身 odom->base_link 由 LeggedController 状态估计动态发布 -->
+    <param name="robot_description" command="$(find xacro)/xacro $(find legged_dm_description)/urdf/dm.urdf robot_type:=$(arg robot_type)"/>
+    <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" output="screen"/>
+
+    <node pkg="legged_controllers" type="timedelay_launch.sh" name="timedelay_launch"
+          args="$(arg controller_start_delay) legged_controllers load_controller_real.launch" output="screen"/>
 
     <node if="$(arg rviz)" name="rviz" pkg="rviz" type="rviz" args="-d $(find legged_controllers)/rviz/legged_robot.rviz" required="false" />
 
@@ -17,6 +26,7 @@
         <include file="$(find legged_controllers)/launch/record_data.launch"/>
     </group>
 
-    <node name="rqt_reconfigure" pkg="rqt_reconfigure" type="rqt_reconfigure" output="screen"></node>
+    <node pkg="legged_controllers" type="timedelay_launch.sh" name="timedelay_rqt"
+          args="$(arg rqt_start_delay) legged_controllers start_rqt_reconfigure.launch" output="screen"/>
 
 </launch>
