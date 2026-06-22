@@ -39,6 +39,11 @@ at www.bridgedp.com.
 #include <geometry_msgs/PoseStamped.h>
 #include <std_msgs/Float64MultiArray.h>
 #include <chrono>
+#include <ctime>
+#include <iomanip>
+#include <sstream>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 namespace legged {
 bool LeggedController::init(hardware_interface::RobotHW* robot_hw, ros::NodeHandle& controller_nh) {
@@ -141,6 +146,9 @@ void LeggedController::starting(const ros::Time& time) {
 
   mpcRunning_ = false;
 
+  // Open a fresh log file for this run/test
+  initLogger();
+
   // Mode Subscribe
   ModeSubscribe();
 
@@ -175,6 +183,9 @@ void LeggedController::update(const ros::Time& time, const ros::Duration& period
     currentObservation_.input = optimizedInput;
     mpc_updated_ = true;
   }
+
+  // Snapshot of the raw MPC contact forces before optimizedInput is zeroed below (for logging).
+  const vector_t mpcForceLog = optimizedInput.segment(0, 12);
 
   const vector_t& mpc_p = optimizedState.segment(6 + 6, jointDim_);  //关节角度
   const vector_t& mpc_v = optimizedInput.segment(12, jointDim_);     //关节角速度
@@ -425,6 +436,10 @@ void LeggedController::update(const ros::Time& time, const ros::Duration& period
 
   mpc_force_pub_.publish(mpc_force_msg);
   // wbc_force_pub_.publish(wbc_force_msg);
+
+  // ---- Record this control cycle to the per-test CSV log ----
+  logData(shifted_time.toSec(), mpc_planned_joint_pos, mpc_planned_joint_vel, torall.tail(jointDim_), output_torque, mpcForceLog,
+          mpc_updated_);
 }
 
 void LeggedController::updateStateEstimation(const ros::Time& time, const ros::Duration& period) {
@@ -524,6 +539,11 @@ void LeggedController::updateStateEstimation(const ros::Time& time, const ros::D
   // ROS_INFO_STREAM("current Height: " << currentObservation_.state(8));
   //////////////////////////////////////////////////////////////////////////////////////////////////
 
+  // Cache the latest IMU readings so that update() can log them.
+  imuQuatLog_ = quat;
+  imuAngularVelLog_ = angularVel;
+  imuLinearAccelLog_ = linearAccel;
+
   stateEstimate_->updateJointStates(jointPos, jointVel);
   stateEstimate_->updateContact(cmdContactFlag);
   stateEstimate_->updateImu(quat, angularVel, linearAccel, orientationCovariance, angularVelCovariance, linearAccelCovariance);
@@ -551,6 +571,11 @@ LeggedController::~LeggedController() {
   mpcRunning_ = false;
   if (mpcThread_.joinable()) {
     mpcThread_.join();
+  }
+  if (logFile_.is_open()) {
+    logFile_.flush();
+    logFile_.close();
+    std::cerr << "\n### Test log saved to: " << logFilePath_ << std::endl;
   }
   std::cerr << "########################################################################";
   std::cerr << "\n### MPC Benchmarking";
@@ -681,6 +706,113 @@ void LeggedController::loadControllerCallback(const std_msgs::Float32::ConstPtr&
   loadControllerFlag_ = true;
   mpcRunning_ = true;
   ROS_INFO("Successfully load the controller");
+}
+
+void LeggedController::initLogger() {
+  // Close any previously opened log file (e.g. controller reloaded).
+  if (logFile_.is_open()) {
+    logFile_.close();
+  }
+  loggerReady_ = false;
+  logCounter_ = 0;
+  prevEmergencyStopFlag_ = false;
+
+  // Build the log directory: $HOME/legged_logs (fallback to /tmp).
+  std::string home = (std::getenv("HOME") != nullptr) ? std::string(std::getenv("HOME")) : std::string("/tmp");
+  std::string logDir = home + "/legged_logs";
+  mkdir(logDir.c_str(), 0775);
+
+  // Timestamped file name so every test gets its own file.
+  std::time_t now = std::time(nullptr);
+  std::tm tmStruct = *std::localtime(&now);
+  std::ostringstream oss;
+  oss << logDir << "/test_" << std::put_time(&tmStruct, "%Y%m%d_%H%M%S") << ".csv";
+  logFilePath_ = oss.str();
+
+  logFile_.open(logFilePath_, std::ios::out | std::ios::trunc);
+  if (!logFile_.is_open()) {
+    ROS_WARN_STREAM("[LeggedController] Failed to open log file: " << logFilePath_);
+    return;
+  }
+
+  const std::vector<std::string> jointNames{"l1", "l2", "l3", "l4", "l5", "r1", "r2", "r3", "r4", "r5"};
+
+  // Header.
+  logFile_ << "t,loadController,setWalk,emergencyStop,mpcUpdated,mode";
+  // Body state (centroidal): base pos(xyz) and base orientation(zyx).
+  logFile_ << ",base_x,base_y,base_z,base_yaw,base_pitch,base_roll";
+  // IMU.
+  logFile_ << ",imu_qx,imu_qy,imu_qz,imu_qw,imu_wx,imu_wy,imu_wz,imu_ax,imu_ay,imu_az";
+  // Per-joint signals.
+  for (const auto& n : jointNames) logFile_ << ",mpos_" << n;
+  for (const auto& n : jointNames) logFile_ << ",mvel_" << n;
+  for (const auto& n : jointNames) logFile_ << ",mtau_" << n;
+  for (const auto& n : jointNames) logFile_ << ",dpos_" << n;
+  for (const auto& n : jointNames) logFile_ << ",dvel_" << n;
+  for (const auto& n : jointNames) logFile_ << ",fftau_" << n;
+  for (const auto& n : jointNames) logFile_ << ",outtau_" << n;
+  // MPC contact forces (4 contacts x xyz).
+  for (size_t i = 0; i < 12; ++i) logFile_ << ",mpcf_" << i;
+  logFile_ << "\n";
+  logFile_.flush();
+
+  loggerReady_ = true;
+  ROS_INFO_STREAM("[LeggedController] Logging this run to: " << logFilePath_);
+}
+
+void LeggedController::logData(double t, const vector_t& mpcDesPos, const vector_t& mpcDesVel, const vector_t& ffTau,
+                               const vector_t& outTau, const vector_t& mpcForce, bool mpcUpdated) {
+  if (!loggerReady_ || !logFile_.is_open()) {
+    return;
+  }
+
+  // Note when the emergency stop transitions, so the trigger is easy to find in the file.
+  if (emergencyStopFlag_ && !prevEmergencyStopFlag_) {
+    ROS_ERROR_STREAM("[LeggedController] EMERGENCY STOP triggered (joint index " << number << ") at t=" << t
+                                                                                 << "s. See log: " << logFilePath_);
+  }
+  prevEmergencyStopFlag_ = emergencyStopFlag_;
+
+  logFile_ << std::fixed << std::setprecision(6) << t;
+  logFile_ << ',' << static_cast<int>(loadControllerFlag_) << ',' << static_cast<int>(setWalkFlag_) << ','
+           << static_cast<int>(emergencyStopFlag_) << ',' << static_cast<int>(mpcUpdated) << ',' << currentObservation_.mode;
+
+  // Centroidal base pose: state(6..11) = base position(xyz) + orientation(zyx).
+  for (size_t i = 6; i < 12; ++i) {
+    logFile_ << ',' << currentObservation_.state(i);
+  }
+
+  // IMU.
+  logFile_ << ',' << imuQuatLog_.x() << ',' << imuQuatLog_.y() << ',' << imuQuatLog_.z() << ',' << imuQuatLog_.w();
+  logFile_ << ',' << imuAngularVelLog_(0) << ',' << imuAngularVelLog_(1) << ',' << imuAngularVelLog_(2);
+  logFile_ << ',' << imuLinearAccelLog_(0) << ',' << imuLinearAccelLog_(1) << ',' << imuLinearAccelLog_(2);
+
+  // Measured joint states.
+  for (size_t j = 0; j < hybridJointHandles_.size(); ++j) logFile_ << ',' << hybridJointHandles_[j].getPosition();
+  for (size_t j = 0; j < hybridJointHandles_.size(); ++j) logFile_ << ',' << hybridJointHandles_[j].getVelocity();
+  for (size_t j = 0; j < hybridJointHandles_.size(); ++j) logFile_ << ',' << hybridJointHandles_[j].getEffort();
+
+  // Desired / feedforward / output joint signals.
+  auto writeVec = [&](const vector_t& v) {
+    for (size_t j = 0; j < jointDim_; ++j) {
+      logFile_ << ',' << (static_cast<size_t>(v.size()) > j ? v(j) : 0.0);
+    }
+  };
+  writeVec(mpcDesPos);
+  writeVec(mpcDesVel);
+  writeVec(ffTau);
+  writeVec(outTau);
+
+  // MPC contact forces.
+  for (size_t i = 0; i < 12; ++i) {
+    logFile_ << ',' << (static_cast<size_t>(mpcForce.size()) > i ? mpcForce(i) : 0.0);
+  }
+  logFile_ << '\n';
+
+  // Flush periodically so data survives a crash / kill, without flushing every cycle.
+  if ((++logCounter_ % 50) == 0) {
+    logFile_.flush();
+  }
 }
 
 void LeggedController::ResetTargetCallback(const std_msgs::Float32::ConstPtr& msg) {

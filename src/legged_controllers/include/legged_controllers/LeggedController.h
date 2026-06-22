@@ -36,6 +36,8 @@ at www.bridgedp.com.
 #include <ocs2_core/constraint/LinearStateInputConstraint.h>
 #include <ocs2_core/soft_constraint/StateInputSoftConstraint.h>
 
+#include <fstream>
+
 namespace legged {
 using namespace ocs2;
 using namespace legged_robot;
@@ -69,6 +71,11 @@ class LeggedController : public controller_interface::MultiInterfaceController<H
   void resetMPC();
   void RetrievingParameters();
   void ModeSubscribe();
+
+  // ---- Data logging (one CSV file per test/run) ----
+  void initLogger();
+  void logData(double t, const vector_t& mpcDesPos, const vector_t& mpcDesVel, const vector_t& ffTau, const vector_t& outTau,
+               const vector_t& mpcForce, bool mpcUpdated);
 
   // Interface
   std::shared_ptr<LeggedInterface> leggedInterface_;
@@ -166,6 +173,17 @@ class LeggedController : public controller_interface::MultiInterfaceController<H
 
   ros::Publisher mpc_force_pub_;
   ros::Publisher wbc_force_pub_;
+
+  // ---- Data logging ----
+  std::ofstream logFile_;
+  std::string logFilePath_;
+  bool loggerReady_{false};
+  bool prevEmergencyStopFlag_{false};
+  size_t logCounter_{0};
+  // Latest IMU readings cached in updateStateEstimation() for logging in update()
+  Eigen::Quaternion<scalar_t> imuQuatLog_{1.0, 0.0, 0.0, 0.0};
+  vector3_t imuAngularVelLog_{vector3_t::Zero()};
+  vector3_t imuLinearAccelLog_{vector3_t::Zero()};
 };
 
 }  // namespace legged
