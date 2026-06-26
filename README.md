@@ -272,31 +272,10 @@ roslaunch legged_controllers one_start_gazebo.launch
 
 ### 实机
 
-1. 给stm32h7开发板烧录下位机程序，上电，此时所有电机应该全亮绿灯
-
-2. 在你的电脑里运行上位机程序
-首先检查开发板和陀螺仪的连接
-```shell
-cd
-ls /dev/ttyACM*
-```
-<img src="./src/docs/dev2.png" width="450" height="auto">
-
-***注意：/dev/ttyACM0是单片机设备，/dev/ttyACM1是IMU设备，两者要各自对应***
-
-然后给用usb连接的开发板和陀螺仪设置权限
-```shell
-sudo chmod -R 777 /dev/ttyACM*
-```
-接着运行上位机程序
 ```shell
 roslaunch legged_controllers one_start_real.launch
 ```
-此时rviz中的机器人模型不动，并且姿势和实机一样
 
-2. 在rqt里面设置***kp_position=100***, ***kd_position=1***，然后在现实世界里扶正机器人，机器人此时稳定站立。
-
-后面的步骤和上面仿真一样，另外遥控器连接后打开遥控器开关，它会自动发布cmd\_cel话题，不需要再运行rosrun rqt\_robot\_steering rqt_robot\_steering 
 
 
 
